@@ -16,6 +16,7 @@ def check_bucket(bucket_name):
     if not s3r.Bucket(bucket_name) in s3r.buckets.all():
         print(f'Bucket {bucket_name} does not exist')
         exit(1)
+    return {"BucketName": bucket_name}
 
 def check_public_access_block(bucket_name):
     try:
@@ -25,7 +26,7 @@ def check_public_access_block(bucket_name):
         del lj['ResponseMetadata']
         return lj
     except Exception:
-        return {}
+        return {"PublicAccessBlockConfiguration": "Not Configured"}
 
 def check_encryption(bucket_name):
     try:
@@ -35,7 +36,7 @@ def check_encryption(bucket_name):
         del lj['ResponseMetadata']
         return lj
     except Exception:
-        return {}
+        return {"ServerSideEncryptionConfiguration": "Not Configured"}
 
 def check_versioning(bucket_name):
     try:
@@ -45,7 +46,7 @@ def check_versioning(bucket_name):
         del lj['ResponseMetadata']
         return lj
     except Exception:
-        return {}
+        return {"BucketVersioning": "Not Configured"}
 
 def check_logging(bucket_name):
     try:
@@ -55,7 +56,7 @@ def check_logging(bucket_name):
         del lj['ResponseMetadata']
         return lj
     except Exception:
-        return {}
+        return {"BucketLogging": "Not Configured"}
 
 def check_lifecycle(bucket_name):
     try:
@@ -65,7 +66,7 @@ def check_lifecycle(bucket_name):
         del lj['ResponseMetadata']
         return lj
     except Exception:
-        return {}
+        return {"BucketLifeCycleConfiguration": "Not Configured"}
 
 def check_object_lock(bucket_name):
     try:
@@ -75,15 +76,16 @@ def check_object_lock(bucket_name):
         del lj['ResponseMetadata']
         return lj
     except Exception:
-        return {}
+        return {"ObjectLockConfiguration": "Not Configured"}
 
 def merge_json(json1, json2):
     return {**json1, **json2}
 
-check_bucket(args.bucket_name)
+buck = check_bucket(args.bucket_name)
 pab = check_public_access_block(args.bucket_name)
+init0 = merge_json(buck, pab)
 enc = check_encryption(args.bucket_name)
-init1 = merge_json(pab, enc)
+init1 = merge_json(init0, enc)
 ver = check_versioning(args.bucket_name)
 init2 = merge_json(init1, ver)
 log = check_logging(args.bucket_name)
