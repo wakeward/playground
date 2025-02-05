@@ -8,61 +8,89 @@ parser.add_argument('-k','--secret-key', help='AWS Secret Key', required=True)
 parser.add_argument('-b', '--bucket-name', help='Bucket Name', required=True)
 args = parser.parse_args()
 
-boto3.session = boto3.Session(aws_access_key_id=args.access_key, aws_secret_access_key=args.secret_key)
-
-s3 = boto3.session.resource('s3')
-
+s3r = boto3.resource('s3',aws_access_key_id=args.access_key, aws_secret_access_key=args.secret_key)
+s3 = boto3.client('s3',aws_access_key_id=args.access_key, aws_secret_access_key=args.secret_key)
 
 def check_bucket(bucket_name):
-    try:
-        bucket = s3.Bucket(bucket_name)
-        print(f'Bucket {bucket_name} exists')
-    except Exception as e:
+    s3r.Bucket(bucket_name)
+    if not s3r.Bucket(bucket_name) in s3r.buckets.all():
         print(f'Bucket {bucket_name} does not exist')
+        exit(1)
 
 def check_public_access_block(bucket_name):
     try:
-        response = s3.BucketPublicAccessBlock(bucket_name)
-        print(f'Bucket {bucket_name} has public access block enabled')
-    except Exception as e:
-        print(f'Bucket {bucket_name} does not have public access block enabled')
+        response = s3.get_public_access_block(Bucket=bucket_name)
+        data = json.dumps(response)
+        lj = json.loads(data)
+        del lj['ResponseMetadata']
+        return lj
+    except Exception:
+        return {}
 
 def check_encryption(bucket_name):
     try:
-        response = s3.BucketEncryption(bucket_name)
-        print(f'Bucket {bucket_name} has encryption enabled')
-    except Exception as e:
-        print(f'Bucket {bucket_name} does not have encryption enabled')
+        response = s3.get_bucket_encryption(Bucket=bucket_name)
+        data = json.dumps(response)
+        lj = json.loads(data)
+        del lj['ResponseMetadata']
+        return lj
+    except Exception:
+        return {}
 
 def check_versioning(bucket_name):
     try:
-        response = s3.BucketVersioning(bucket_name)
-        print(f'Bucket {bucket_name} has versioning enabled')
-    except Exception as e:
-        print(f'Bucket {bucket_name} does not have versioning enabled')
+        response = s3.get_bucket_versioning(Bucket=bucket_name)
+        data = json.dumps(response)
+        lj = json.loads(data)
+        del lj['ResponseMetadata']
+        return lj
+    except Exception:
+        return {}
 
 def check_logging(bucket_name):
     try:
-        response = s3.BucketLogging(bucket_name)
-        print(f'Bucket {bucket_name} has logging enabled')
-    except Exception as e:
-        print(f'Bucket {bucket_name} does not have logging enabled')
+        response = s3.get_bucket_logging(Bucket=bucket_name)
+        data = json.dumps(response)
+        lj = json.loads(data)
+        del lj['ResponseMetadata']
+        return lj
+    except Exception:
+        return {}
 
 def check_lifecycle(bucket_name):
     try:
-        response = s3.BucketLifecycle(bucket_name)
-        print(f'Bucket {bucket_name} has lifecycle enabled')
-    except Exception as e:
-        print(f'Bucket {bucket_name} does not have lifecycle enabled')
+        response = s3.get_bucket_lifecycle(Bucket=bucket_name)
+        data = json.dumps(response)
+        lj = json.loads(data)
+        del lj['ResponseMetadata']
+        return lj
+    except Exception:
+        return {}
 
 def check_object_lock(bucket_name):
     try:
-        response = s3.BucketObjectLock(bucket_name)
-        print(f'Bucket {bucket_name} has object lock enabled')
-    except Exception as e:
-        print(f'Bucket {bucket_name} does not have object lock enabled')
+        response = s3.get_object_lock_configuration(Bucket=bucket_name)
+        data = json.dumps(response)
+        lj = json.loads(data)
+        del lj['ResponseMetadata']
+        return lj
+    except Exception:
+        return {}
 
-def main():
-    check_bucket(args.bucket_name)
-    res = check_public_access_block(args.bucket_name)
-    print(res)
+def merge_json(json1, json2):
+    return {**json1, **json2}
+
+check_bucket(args.bucket_name)
+pab = check_public_access_block(args.bucket_name)
+enc = check_encryption(args.bucket_name)
+init1 = merge_json(pab, enc)
+ver = check_versioning(args.bucket_name)
+init2 = merge_json(init1, ver)
+log = check_logging(args.bucket_name)
+init3 = merge_json(init2, log)
+lif = check_lifecycle(args.bucket_name)
+init4 = merge_json(init3, lif)
+ol = check_object_lock(args.bucket_name)
+init5 = merge_json(init4, ol)
+
+print(json.dumps(init5, indent=4, sort_keys=True))
